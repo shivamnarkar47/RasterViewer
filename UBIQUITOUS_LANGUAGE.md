@@ -4,11 +4,16 @@
 
 | Term | Definition | Aliases to avoid |
 | ---- | ----------- | ----------------- |
-| **Raster** | A grid of pixel values with geographic坐标 (georeference) | Image, bitmap, grid |
+| **Raster** | A grid of pixel values with geographic coordinates (georeference) | Image, bitmap, grid |
 | **TIFF** | Tagged Image File Format - a lossless raster format that can embed georeference metadata | TIF, GeoTIFF |
 | **GeoTIFF** | TIFF with embedded coordinate metadata (CRS, transform, bounds) | — |
 | **Pixel Value** | The numeric value stored at a single grid cell | DN (digital number), cell value, intensity |
 | **NoData** | Pixel values that represent missing or invalid data | null, empty, nodata |
+| **Single-band** | Raster with one value per pixel (grayscale) | Grayscale, 1-band |
+| **Multi-band** | Raster with multiple values per pixel (e.g., RGB = 3 bands) | RGB, multi-channel |
+| **Colormap** | Function that maps pixel values to colors for display | Color ramp, color scale |
+| **Palette** | 256-color lookup table applied to single-band rasters | Color table, LUT |
+| **Normalization** | Mapping raw pixel values to displayable 0-255 range | Scaling, stretching |
 
 ## Coordinate Systems
 
@@ -56,17 +61,19 @@
 - "Tile" was used to mean both map tiles (Map Provider concept) and raster tiles (TIFF rendered as XYZ) — these are distinct: base map tiles come from the **Map Provider**, while raster overlay tiles come from the **VRT** endpoint.
 - "Image" was used loosely for both the raw TIFF file and the rendered overlay — the **Raster** is the domain concept; "image" is a rendering view.
 - "Overlay" and "layer" used interchangeably — **Layer** is the canonical term for a user's uploaded TIFF.
+- "Visual" was used for both the rendered tile and the color scheme — "visual" is too vague; use **Colormap** or **Palette** for color mapping, **Rendered tile** for the output image.
+- "Render" was used to mean both generating tiles and applying color — **VRT** generates raw tiles, **Colormap** applies color for display.
 
 ## Example dialogue
 
-> **Dev:** "When a user uploads a **TIFF**, how do we determine where it goes on the map?"
+> **Dev:** "User uploads a **TIFF** but it shows nothing on the map. Click queries still work."
 
-> **Domain expert:** "We read the **GeoTIFF** metadata to extract the **transform** and **CRS**. The **transform** gives us pixel-to-coordinate mapping, which lets us compute the **Bounds**."
+> **Domain expert:** "The **Rendered tile** is probably all black. What's the **NoData** value?"
 
-> **Dev:** "What if the TIFF has no CRS embedded?"
+> **Dev:** "0. The raster is elevation data with 0 as sea level."
 
-> **Domain expert:** "Then we **fallback** to **WGS84** (EPSG:4326) as the default **CRS**, and show a warning in the UI. The user can override via the **CRS dropdown**."
+> **Domain expert:** "Ah - the **Normalization** is treating 0 as **NoData**. It should only treat -1 as **NoData** by default. Also, single-band **Raster** needs a **Colormap** to be visible — without it, it's just grayscale."
 
-> **Dev:** "And the **Click Query** returns the **pixel value** at the clicked location?"
+> **Dev:** "So we need two fixes: fix **Normalization** to not reject 0, and add a **Palette** for single-band rendering?"
 
-> **Domain expert:** "Yes. We convert the clicked lat/lon to pixel coordinates using the **transform**, sample the value, and return it along with coordinates. If the click is outside the **Bounds** or is **NoData**, we return null."
+> **Domain expert:** "Exactly. The **Click Query** returns raw **Pixel Value** for analysis, while the **Rendered tile** applies **Normalization** and **Palette** for visualization."
